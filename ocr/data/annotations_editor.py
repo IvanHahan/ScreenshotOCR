@@ -6,6 +6,7 @@ from ocr.data.image_processing import letter_boxes
 from ocr.data.visualization import draw_boxes
 from utils.path import abs_path
 import numpy as np
+from utils.path import make_dir_if_needed
 
 
 class Annotator(ScreenshotProcessor):
@@ -47,12 +48,14 @@ class Annotator(ScreenshotProcessor):
 
 
 def main(args):
-    annotator = Annotator(args.input_dir)
-    annotator.start(1)
+    make_dir_if_needed(args.output_dir)
+    annotator = Annotator(args.input_dir, args.output_dir)
+    annotator.start()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', default=abs_path('data/images/raw'))
+    parser.add_argument('--output_dir', default=abs_path('data/annotations/'))
     main(parser.parse_args())
 
