@@ -31,10 +31,10 @@ class FocalLoss(nn.Module):
 
     def forward(self, classifications, regressions, anchors, annotations):
         alpha = 0.25
+        regression_losses = []
         gamma = 2.0
         batch_size = classifications.shape[0]
         classification_losses = []
-        regression_losses = []
 
         anchor = anchors[0, :, :]
 
@@ -49,12 +49,11 @@ class FocalLoss(nn.Module):
             regression = regressions[j, :, :]
 
             bbox_annotation = annotations[j, :, :]
-            bbox_annotation = bbox_annotation[bbox_annotation[:, 4] != -1]
+            # bbox_annotation = bbox_annotation[:, :4]#bbox_annotation[bbox_annotation[:, 4] == 1]
 
             if bbox_annotation.shape[0] == 0:
                 regression_losses.append(torch.tensor(0).float().cuda())
                 classification_losses.append(torch.tensor(0).float().cuda())
-
                 continue
 
             classification = torch.clamp(classification, 1e-4, 1.0 - 1e-4)
@@ -69,7 +68,6 @@ class FocalLoss(nn.Module):
 
             # compute the loss for classification
             targets = torch.ones(classification.shape) * -1
-            targets = targets.cuda()
 
             targets[torch.lt(IoU_max, 0.4), :] = 0
 
@@ -83,7 +81,7 @@ class FocalLoss(nn.Module):
             targets[positive_indices,
                     assigned_annotations[positive_indices, 4].long()] = 1
 
-            alpha_factor = torch.ones(targets.shape).cuda() * alpha
+            alpha_factor = torch.ones(targets.shape) * alpha
 
             alpha_factor = torch.where(
                 torch.eq(targets, 1.), alpha_factor, 1. - alpha_factor)
@@ -98,7 +96,7 @@ class FocalLoss(nn.Module):
             cls_loss = focal_weight * bce
 
             cls_loss = torch.where(
-                torch.ne(targets, -1.0), cls_loss, torch.zeros(cls_loss.shape).cuda())
+                torch.ne(targets, -1.0), cls_loss, torch.zeros(cls_loss.shape))
 
             classification_losses.append(
                 cls_loss.sum()/torch.clamp(num_positive_anchors.float(), min=1.0))
@@ -133,7 +131,7 @@ class FocalLoss(nn.Module):
                     (targets_dx, targets_dy, targets_dw, targets_dh))
                 targets = targets.t()
 
-                targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).cuda()
+                targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]])
 
                 negative_indices = 1 + (~positive_indices)
 
@@ -147,6 +145,6 @@ class FocalLoss(nn.Module):
                 )
                 regression_losses.append(regression_loss.mean())
             else:
-                regression_losses.append(torch.tensor(0).float().cuda())
+                regression_losses.append(torch.tensor(0).float())
 
         return torch.stack(classification_losses).mean(dim=0, keepdim=True), torch.stack(regression_losses).mean(dim=0, keepdim=True)

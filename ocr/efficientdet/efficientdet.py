@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 import math
-from .efficientnet import EfficientNet
-from .bifpn import BIFPN
-from .retinahead import RetinaHead
-from .module import RegressionModel, ClassificationModel, Anchors, ClipBoxes, BBoxTransform
+from ocr.efficientdet.efficientnet import EfficientNet
+from ocr.efficientdet.bifpn import BIFPN
+from ocr.efficientdet.retinahead import RetinaHead
+from ocr.efficientdet.module import RegressionModel, ClassificationModel, Anchors, ClipBoxes, BBoxTransform
 from torchvision.ops import nms
-from .losses import FocalLoss
+from ocr.efficientdet.losses import FocalLoss
 MODEL_MAP = {
     'efficientdet-d0': 'efficientnet-b0',
     'efficientdet-d1': 'efficientnet-b1',
@@ -25,7 +25,6 @@ class EfficientDet(nn.Module):
                  network='efficientdet-d0',
                  D_bifpn=3,
                  W_bifpn=88,
-                 D_class=3,
                  is_training=True,
                  threshold=0.01,
                  iou_threshold=0.5):
@@ -63,9 +62,9 @@ class EfficientDet(nn.Module):
         outs = self.bbox_head(x)
         classification = torch.cat([out for out in outs[0]], dim=1)
         regression = torch.cat([out for out in outs[1]], dim=1)
-        anchors = self.anchors(inputs)
+        anchors = self.anchors(inputs).double()
         if self.is_training:
-            return self.criterion(classification, regression, anchors, annotations)
+            return self.criterion(classification, regression, anchors, annotations.double())
         else:
             transformed_anchors = self.regressBoxes(anchors, regression)
             transformed_anchors = self.clipBoxes(transformed_anchors, inputs)
@@ -98,3 +97,10 @@ class EfficientDet(nn.Module):
         x = self.backbone(img)
         x = self.neck(x[-5:])
         return x
+
+
+if __name__ == '__main__':
+    model = EfficientDet(1, is_training=False)
+    model(torch.rand((1, 3, 1280, 768)))
+
+
