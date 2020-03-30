@@ -34,19 +34,17 @@ def build_label(image_shape, boxes):
         cell_h, cell_w = np.array(image_shape) // np.array(levels[best_level].shape[1:])
 
         lev_x, lev_y = int(c_x // cell_w), int(c_y // cell_h)
-        cell_rel_x1 = x - lev_x * cell_w
-        cell_rel_y1 = y - lev_y * cell_h
-        cell_rel_x2 = cell_rel_x1 + w
-        cell_rel_y2 = cell_rel_y1 + h
-        cell_rel_x1 /= cell_w
-        cell_rel_y1 /= cell_h
-        cell_rel_x2 /= cell_w
-        cell_rel_y2 /= cell_h
 
-        levels[best_level][0, lev_y, lev_x] = cell_rel_x1
-        levels[best_level][1, lev_y, lev_x] = cell_rel_y1
-        levels[best_level][2, lev_y, lev_x] = cell_rel_x2
-        levels[best_level][3, lev_y, lev_x] = cell_rel_y2
+        cell_rel_x = x - lev_x * cell_w + (w/2)
+        cell_rel_y = y - lev_y * cell_h + (h/2)
+
+        w = np.log(w / cell_w)
+        h = np.log(h / cell_h)
+
+        levels[best_level][0, lev_y, lev_x] = cell_rel_x
+        levels[best_level][1, lev_y, lev_x] = cell_rel_y
+        levels[best_level][2, lev_y, lev_x] = w
+        levels[best_level][3, lev_y, lev_x] = h
         levels[best_level][4, lev_y, lev_x] = 1
 
     return np.column_stack([level.reshape(5, -1) for level in levels]).transpose()

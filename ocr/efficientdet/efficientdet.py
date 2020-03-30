@@ -60,11 +60,8 @@ class EfficientDet(nn.Module):
             inputs = inputs
         x = self.extract_feat(inputs)
         outs = self.bbox_head(x)
-        classification = torch.cat([out for out in outs[0]], dim=1)
-        regression = torch.cat([out for out in outs[1]], dim=1)
-        anchors = self.anchors(inputs).double()
         if self.is_training:
-            return self.criterion(classification, regression, anchors, annotations.double())
+            return self.criterion(outs, annotations.double())
         else:
             transformed_anchors = self.regressBoxes(anchors, regression)
             transformed_anchors = self.clipBoxes(transformed_anchors, inputs)

@@ -34,7 +34,7 @@ class FocalLoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
 
-    def forward(self, predictions, target, anchors):
+    def forward(self, predictions, target):
         # predictions batch x boxes x (cx, cy, w, h, conf)
         # target batch x boxes x (cx, cy, w, h, conf)
         # anchors batch x boxes x (w, h)
