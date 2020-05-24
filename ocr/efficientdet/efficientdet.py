@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 import math
-from ocr.efficientdet.efficientnet import EfficientNet
+from ocr.efficientnet.model import EfficientNet
 from ocr.efficientdet.bifpn import BIFPN
 from ocr.efficientdet.retinahead import RetinaHead
 from ocr.efficientdet.module import RegressionModel, ClassificationModel, Anchors, ClipBoxes, BBoxTransform
 from torchvision.ops import nms
-from ocr.efficientdet.losses import FocalLoss
+import numpy as np
 MODEL_MAP = {
     'efficientdet-d0': 'efficientnet-b0',
     'efficientdet-d1': 'efficientnet-b1',
@@ -25,6 +25,7 @@ class EfficientDet(nn.Module):
                  network='efficientdet-d0',
                  D_bifpn=3,
                  W_bifpn=88,
+                 D_class=3,
                  is_training=True,
                  threshold=0.01,
                  iou_threshold=0.5):
@@ -38,9 +39,6 @@ class EfficientDet(nn.Module):
         self.bbox_head = RetinaHead(num_classes=num_classes,
                                     in_channels=W_bifpn)
 
-        self.anchors = Anchors()
-        self.regressBoxes = BBoxTransform()
-        self.clipBoxes = ClipBoxes()
         self.threshold = threshold
         self.iou_threshold = iou_threshold
         for m in self.modules():
@@ -51,7 +49,6 @@ class EfficientDet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
         self.freeze_bn()
-        self.criterion = FocalLoss()
 
     def forward(self, inputs):
         if self.is_training:
@@ -59,27 +56,8 @@ class EfficientDet(nn.Module):
         else:
             inputs = inputs
         x = self.extract_feat(inputs)
-        outs = self.bbox_head(x)
-        if self.is_training:
-            return self.criterion(outs, annotations.double())
-        else:
-            transformed_anchors = self.regressBoxes(anchors, regression)
-            transformed_anchors = self.clipBoxes(transformed_anchors, inputs)
-            scores = torch.max(classification, dim=2, keepdim=True)[0]
-            scores_over_thresh = (scores > self.threshold)[0, :, 0]
-
-            if scores_over_thresh.sum() == 0:
-                print('No boxes to NMS')
-                # no boxes to NMS, just return
-                return [torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)]
-            classification = classification[:, scores_over_thresh, :]
-            transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
-            scores = scores[:, scores_over_thresh, :]
-            anchors_nms_idx = nms(
-                transformed_anchors[0, :, :], scores[0, :, 0], iou_threshold=self.iou_threshold)
-            nms_scores, nms_class = classification[0, anchors_nms_idx, :].max(
-                dim=1)
-            return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
+        classes, boxes = self.bbox_head(x)
+        return classes, boxes
 
     def freeze_bn(self):
         '''Freeze BatchNorm layers.'''
@@ -97,7 +75,9 @@ class EfficientDet(nn.Module):
 
 
 if __name__ == '__main__':
-    model = EfficientDet(1, is_training=False)
-    model(torch.rand((1, 3, 1280, 768)))
-
-
+    # print(EfficientNet.from_pretrained('efficientnet-b0')(torch.from_numpy(np.ones((1, 3, 128, 128))).float())[2].shape)
+    # model = nn.Sequential(*EfficientNet.from_pretrained('efficientnet-b0').get_list_features())
+    # # print(model)
+    # print(model(torch.from_numpy(np.ones((1, 3, 128, 128))).float()))
+    model = EfficientDet(7, is_training=False)
+    print(model(torch.from_numpy(np.ones((1, 3, 128, 128))).float())[0].shape)

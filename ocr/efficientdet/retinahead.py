@@ -36,8 +36,8 @@ class RetinaHead(nn.Module):
                  num_classes,
                  in_channels,
                  feat_channels=256,
-                 anchor_scales=[16],
-                 anchor_ratios=[1.0],
+                 anchor_scales=[8, 16, 32],
+                 anchor_ratios=[0.5, 1.0, 2.0],
                  anchor_strides=[4, 8, 16, 32, 64],
                  stacked_convs=4,
                  octave_base_scale=4,
@@ -125,7 +125,6 @@ class RetinaHead(nn.Module):
 
         bbox_pred = self.retina_reg(reg_feat)
         bbox_pred = bbox_pred.permute(0, 2, 3, 1)
-
         bbox_pred = bbox_pred.contiguous().view(bbox_pred.size(0), -1, 4)
         return cls_score, bbox_pred
 

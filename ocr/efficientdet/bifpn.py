@@ -186,18 +186,24 @@ class BiFPNModule(nn.Module):
             inputs_clone.append(in_tensor.clone())
 
         for i in range(levels - 1, 0, -1):
+            scale_factor=2
+            if pathtd[i-1].shape[-2:] == pathtd[i].shape[-2:]:
+                scale_factor = 1
             pathtd[i - 1] = (w1[0, i-1]*pathtd[i - 1] + w1[1, i-1]*F.interpolate(
-                pathtd[i], scale_factor=2, mode='nearest'))/(w1[0, i-1] + w1[1, i-1] + self.eps)
+                pathtd[i], scale_factor=scale_factor, mode='nearest'))/(w1[0, i-1] + w1[1, i-1] + self.eps)
             pathtd[i - 1] = self.bifpn_convs[idx_bifpn](pathtd[i - 1])
             idx_bifpn = idx_bifpn + 1
         # build down-top
         for i in range(0, levels - 2, 1):
-            pathtd[i + 1] = (w2[0, i] * pathtd[i + 1] + w2[1, i] * F.max_pool2d(pathtd[i], kernel_size=2) +
+            kernel_size = 2
+            if pathtd[i].shape[-2:] == pathtd[i+1].shape[-2:]:
+                kernel_size = 1
+            pathtd[i + 1] = (w2[0, i] * pathtd[i + 1] + w2[1, i] * F.max_pool2d(pathtd[i], kernel_size=kernel_size) +
                              w2[2, i] * inputs_clone[i + 1])/(w2[0, i] + w2[1, i] + w2[2, i] + self.eps)
             pathtd[i + 1] = self.bifpn_convs[idx_bifpn](pathtd[i + 1])
             idx_bifpn = idx_bifpn + 1
 
         pathtd[levels - 1] = (w1[0, levels-1] * pathtd[levels - 1] + w1[1, levels-1] * F.max_pool2d(
-            pathtd[levels - 2], kernel_size=2))/(w1[0, levels-1] + w1[1, levels-1] + self.eps)
+            pathtd[levels - 2], kernel_size=1))/(w1[0, levels-1] + w1[1, levels-1] + self.eps)
         pathtd[levels - 1] = self.bifpn_convs[idx_bifpn](pathtd[levels - 1])
         return pathtd
