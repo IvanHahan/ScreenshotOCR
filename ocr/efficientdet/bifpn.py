@@ -49,6 +49,10 @@ class BIFPN(nn.Module):
         self.fpn_convs = nn.ModuleList()
         self.stack_bifpn_convs = nn.ModuleList()
 
+        self.conv2 = nn.Conv2d(in_channels[2], in_channels[2], 3, 2, 1)
+        self.conv3 = nn.Conv2d(in_channels[3], in_channels[3], 3, 2, 1)
+        self.conv4 = nn.Conv2d(in_channels[4], in_channels[4], 3, 4, 1)
+
         for i in range(self.start_level, self.backbone_end_level):
             l_conv = ConvModule(
                 in_channels[i],
@@ -95,6 +99,9 @@ class BIFPN(nn.Module):
 
     def forward(self, inputs):
         assert len(inputs) == len(self.in_channels)
+        inputs[2] = self.conv2(inputs[2])
+        inputs[3] = self.conv3(inputs[3])
+        inputs[4] = self.conv4(inputs[4])
 
         # build laterals
         laterals = [
@@ -148,6 +155,7 @@ class BiFPNModule(nn.Module):
         self.relu1 = nn.ReLU()
         self.w2 = nn.Parameter(torch.Tensor(3, levels - 2).fill_(init))
         self.relu2 = nn.ReLU()
+
         for jj in range(2):
             for i in range(self.levels-1):  # 1,2,3
                 fpn_conv = nn.Sequential(
@@ -172,6 +180,9 @@ class BiFPNModule(nn.Module):
     def forward(self, inputs):
         assert len(inputs) == self.levels
         # build top-down and down-top path with stack
+
+        # inputs[2] =
+
         levels = self.levels
         # w relu
         w1 = self.relu1(self.w1)
@@ -186,24 +197,18 @@ class BiFPNModule(nn.Module):
             inputs_clone.append(in_tensor.clone())
 
         for i in range(levels - 1, 0, -1):
-            scale_factor=2
-            if pathtd[i-1].shape[-2:] == pathtd[i].shape[-2:]:
-                scale_factor = 1
             pathtd[i - 1] = (w1[0, i-1]*pathtd[i - 1] + w1[1, i-1]*F.interpolate(
-                pathtd[i], scale_factor=scale_factor, mode='nearest'))/(w1[0, i-1] + w1[1, i-1] + self.eps)
+                pathtd[i], scale_factor=2, mode='nearest'))/(w1[0, i-1] + w1[1, i-1] + self.eps)
             pathtd[i - 1] = self.bifpn_convs[idx_bifpn](pathtd[i - 1])
             idx_bifpn = idx_bifpn + 1
         # build down-top
         for i in range(0, levels - 2, 1):
-            kernel_size = 2
-            if pathtd[i].shape[-2:] == pathtd[i+1].shape[-2:]:
-                kernel_size = 1
-            pathtd[i + 1] = (w2[0, i] * pathtd[i + 1] + w2[1, i] * F.max_pool2d(pathtd[i], kernel_size=kernel_size) +
+            pathtd[i + 1] = (w2[0, i] * pathtd[i + 1] + w2[1, i] * F.max_pool2d(pathtd[i], kernel_size=2) +
                              w2[2, i] * inputs_clone[i + 1])/(w2[0, i] + w2[1, i] + w2[2, i] + self.eps)
             pathtd[i + 1] = self.bifpn_convs[idx_bifpn](pathtd[i + 1])
             idx_bifpn = idx_bifpn + 1
 
         pathtd[levels - 1] = (w1[0, levels-1] * pathtd[levels - 1] + w1[1, levels-1] * F.max_pool2d(
-            pathtd[levels - 2], kernel_size=1))/(w1[0, levels-1] + w1[1, levels-1] + self.eps)
+            pathtd[levels - 2], kernel_size=2))/(w1[0, levels-1] + w1[1, levels-1] + self.eps)
         pathtd[levels - 1] = self.bifpn_convs[idx_bifpn](pathtd[levels - 1])
         return pathtd

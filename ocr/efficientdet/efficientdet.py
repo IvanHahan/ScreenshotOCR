@@ -73,11 +73,14 @@ class EfficientDet(nn.Module):
         x = self.neck(x[-5:])
         return x
 
+    # def build_label(self, annot, img_shape):
+        # c_x, c_y, w, h, class
+
 
 if __name__ == '__main__':
     # print(EfficientNet.from_pretrained('efficientnet-b0')(torch.from_numpy(np.ones((1, 3, 128, 128))).float())[2].shape)
     # model = nn.Sequential(*EfficientNet.from_pretrained('efficientnet-b0').get_list_features())
-    # # print(model)
     # print(model(torch.from_numpy(np.ones((1, 3, 128, 128))).float()))
-    model = EfficientDet(7, is_training=False)
-    print(model(torch.from_numpy(np.ones((1, 3, 128, 128))).float())[0].shape)
+    model = EfficientDet(1, is_training=False)
+    a = model(torch.from_numpy(np.ones((1, 3, 1280, 1024))).float())
+    print(a[0].shape)

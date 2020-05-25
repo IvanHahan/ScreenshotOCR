@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 import torch.nn as nn
+import torch
 
 from .module import ConvModule, bias_init_with_prob, normal_init
 from six.moves import map, zip
@@ -129,4 +130,7 @@ class RetinaHead(nn.Module):
         return cls_score, bbox_pred
 
     def forward(self, feats):
-        return multi_apply(self.forward_single, feats)
+        classes, boxes = multi_apply(self.forward_single, feats)
+        classes = torch.cat(classes, dim=1)
+        boxes = torch.cat(boxes, dim=1)
+        return classes, boxes
