@@ -37,7 +37,6 @@ class RetinaHead(nn.Module):
                  num_classes,
                  in_channels,
                  feat_channels=256,
-                 anchor_scales=[8, 16, 32],
                  anchor_ratios=[0.5, 1.0, 2.0],
                  anchor_strides=[4, 8, 16, 32, 64],
                  stacked_convs=4,
@@ -50,7 +49,6 @@ class RetinaHead(nn.Module):
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.feat_channels = feat_channels
-        self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         self.anchor_strides = anchor_strides
         self.stacked_convs = stacked_convs
@@ -62,7 +60,7 @@ class RetinaHead(nn.Module):
             [2**(i / scales_per_octave) for i in range(scales_per_octave)])
         anchor_scales = octave_scales * octave_base_scale
         self.cls_out_channels = num_classes
-        self.num_anchors = len(self.anchor_ratios) * len(self.anchor_scales)
+        self.num_anchors = len(self.anchor_ratios)
         self._init_layers()
 
     def _init_layers(self):

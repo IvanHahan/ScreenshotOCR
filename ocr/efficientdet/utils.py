@@ -326,3 +326,50 @@ def load_pretrained_weights(model, model_name, load_fc=True):
         assert set(res.missing_keys) == set(
             ['_fc.weight', '_fc.bias']), 'issue loading pretrained weights'
     print('Loaded pretrained weights for {}'.format(model_name))
+
+
+def calc_iou(l, r, no_positions=False):
+    # x1, y1, x2, y2
+
+    if no_positions:
+        l[2] -= l[0]
+        l[0] = 0
+        l[3] -= l[1]
+        l[1] = 0
+        r[2] -= r[0]
+        r[0] = 0
+        r[3] -= r[1]
+        r[1] = 0
+
+    l_x1, l_y1, l_x2, l_y2 = l
+    r_x1, r_y1, r_x2, r_y2 = r
+
+    inter_x1 = max(l_x1, r_x1)
+    inter_y1 = max(l_y1, r_y1)
+    inter_x2 = min(l_x2, r_x2)
+    inter_y2 = min(l_y2, r_y2)
+    intersection = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+
+    union_x1 = min(l_x1, r_x1)
+    union_y1 = min(l_y1, r_y1)
+    union_x2 = max(l_x2, r_x2)
+    union_y2 = max(l_y2, r_y2)
+    union = (union_x2 - union_x1) * (union_y2 - union_y1)
+
+    return intersection / (union + 0.00001)
+
+
+def xywh2xyxy(rects):
+    rects[:, 0] -= rects[:, 2] / 2
+    rects[:, 1] -= rects[:, 3] / 2
+    rects[:, 2] = rects[:, 0] + rects[:, 2]
+    rects[:, 3] = rects[:, 1] + rects[:, 3]
+    return rects
+
+
+def xyxy2xywh(rects):
+    rects[:, 2] = rects[:, 2] - rects[:, 0]
+    rects[:, 3] = rects[:, 3] - rects[:, 1]
+    rects[:, 0] += rects[:, 2] / 2
+    rects[:, 1] += rects[:, 3] / 2
+    return rects
