@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 import torch.nn as nn
+from torch.nn import functional as F
 import torch
 
 from .module import ConvModule, bias_init_with_prob, normal_init
@@ -42,10 +43,12 @@ class RetinaHead(nn.Module):
                  stacked_convs=4,
                  octave_base_scale=4,
                  scales_per_octave=3,
+                 is_training=False,
                  conv_cfg=None,
                  norm_cfg=None,
                  **kwargs):
         super(RetinaHead, self).__init__()
+        self.is_training = is_training
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.feat_channels = feat_channels
@@ -105,7 +108,7 @@ class RetinaHead(nn.Module):
         normal_init(self.retina_cls, std=0.01, bias=bias_cls)
         normal_init(self.retina_reg, std=0.01)
 
-    def forward_single(self, x):
+    def forward_single(self, x, img_shape):
         cls_feat = x
         reg_feat = x
         for cls_conv in self.cls_convs:
@@ -123,8 +126,28 @@ class RetinaHead(nn.Module):
         cls_score = cls_score.contiguous().view(x.size(0), -1, self.num_classes)
 
         bbox_pred = self.retina_reg(reg_feat)
+        bbox_pred[..., 0::4] = F.sigmoid(bbox_pred[..., 0::4])
+        bbox_pred[..., 1::4] = F.sigmoid(bbox_pred[..., 1::4])
+
+        cell_shape = img_shape // np.array(list(bbox_pred.shape[2:]))
+        anchors = []
+        for ratio in self.anchor_ratios:
+            anchor = max(cell_shape), max(cell_shape)
+            if ratio < 1:
+                anchor[0] /= ratio
+            else:
+                anchor[1] *= ratio
+            anchors.append(anchor)
+
+        output_boxes = bbox_pred.clone()
+        output_boxes[..., 0::4] = output_boxes[..., 0::4] * cell_shape[1] + \
+                                  torch.range(0, bbox_pred.shape[3]).repeat(bbox_pred.shape[2]) * cell_shape[1]
+        output_boxes[..., 1::4] = output_boxes[..., 1::4] * cell_shape[0] + \
+                                  torch.range(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[3]) * cell_shape[0]
+
         bbox_pred = bbox_pred.permute(0, 2, 3, 1)
         bbox_pred = bbox_pred.contiguous().view(bbox_pred.size(0), -1, 4)
+
         return cls_score, bbox_pred
 
     def forward(self, feats):

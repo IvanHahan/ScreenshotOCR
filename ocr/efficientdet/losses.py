@@ -11,7 +11,7 @@ def focal_loss(alpha, gamma):
         entropy = F.binary_cross_entropy(pred_classes.view(-1),
                                   annot_classes.view(-1), reduce=False)
         inv_entropy = torch.exp(entropy)
-        f_loss = (-alpha * (1 - inv_entropy) ** gamma) * entropy
+        f_loss = (alpha * (1 - inv_entropy) ** gamma) * entropy
 
         return f_loss.mean()
     return loss
