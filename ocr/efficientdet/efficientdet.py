@@ -54,6 +54,7 @@ class EfficientDet(nn.Module):
     def forward(self, inputs):
         if self.is_training:
             inputs, annotations = inputs
+            annotations = [self.build_label(annot, inputs.shape[2:], [0.5, 1, 2.0], 3) for annot in annotations]
         else:
             inputs = inputs
         x = self.extract_feat(inputs)
@@ -79,15 +80,17 @@ class EfficientDet(nn.Module):
         classes_levels = []
         cell_shapes = []
         divider = 8
+
+        img_h, img_w = img_shape
         for i in range(5):
-            level_shape = img_shape // 8
-            rect_level = np.zeros((*level_shape, len(anchor_ratios) * 4))
-            class_level = np.zeros((*level_shape, num_classes))
+            level_shape = img_h // divider, img_w // divider
+            rect_level = torch.zeros((len(anchor_ratios) * 4, *level_shape))
+            class_level = torch.zeros((len(anchor_ratios) * num_classes, *level_shape))
             level_cell_shapes = []
             for ratio in anchor_ratios:
-                cell_size = max(img_shape / level_shape)
-                cell_shape = (cell_size, cell_size)
-                if ratio < 0:
+                cell_size = max(img_shape[0] / level_shape[0], img_shape[1] / level_shape[1])
+                cell_shape = [cell_size, cell_size]
+                if ratio < 1:
                     cell_shape[0] /= ratio
                 else:
                     cell_shape[1] *= ratio
@@ -96,44 +99,37 @@ class EfficientDet(nn.Module):
             rect_levels.append(rect_level)
             classes_levels.append(class_level)
             divider *= 2
-        cell_shapes = np.array(cell_shapes)
+        cell_shapes = torch.FloatTensor(cell_shapes)
         for annot in annots:
             x1, y1, x2, y2, c = annot
             c_x, c_y = (x2 + x1) / 2, (y2 + y1) / 2
             w, h = (x2 - x1), (y2 - y1)
-            max_iou_i = np.argmax([calc_iou([x1, y1, x2, y2], [0, 0, *cell_shape], no_positions=True)
+            max_iou_i = torch.argmax(torch.FloatTensor([calc_iou([x1, y1, x2, y2], [0, 0, *cell_shape], no_positions=True)
                                        for level_cell_shapes in cell_shapes
-                                       for cell_shape in level_cell_shapes])
-            best_level = max_iou_i // len(cell_shapes)
+                                       for cell_shape in level_cell_shapes]))
+            best_level = max_iou_i // len(anchor_ratios)
             best_anchor = max_iou_i % len(anchor_ratios)
 
             anchor_shape = cell_shapes[best_level, best_anchor]
-            cell_shape = img_shape // rect_levels[best_level].shape[:2]
-            y_i = c_y // cell_shape[0]
-            x_i = c_x // cell_shape[1]
+            cell_shape = img_h // rect_levels[best_level].shape[1], img_w // rect_levels[best_level].shape[2]
+            y_i = c_y.int() // cell_shape[0]
+            x_i = c_x.int() // cell_shape[1]
 
-            cell_center_x = x_i * cell_shape[1] + cell_shape[1] / 2
-            cell_center_y = y_i * cell_shape[0] + cell_shape[0] / 2
-
-            anchor_x1 = cell_center_x - anchor_shape[1] / 2
-            anchor_y1 = cell_center_y - anchor_shape[0] / 2
-
-            rect_levels[best_level][y_i, x_i, best_anchor * 4] = c_x - anchor_x1
-            rect_levels[best_level][y_i, x_i, best_anchor * 4 + 1] = c_y - anchor_y1
-            rect_levels[best_level][y_i, x_i, best_anchor * 4 + 2] = w / anchor_shape[1]
-            rect_levels[best_level][y_i, x_i, best_anchor * 4 + 3] = h / anchor_shape[0]
-            classes_levels[best_level][y_i, x_i] = np.eye(num_classes)[c]
-        rects = np.row_stack([l.reshape(-1, 4) for l in rect_levels])
-        classes = np.row_stack([c.reshape(-1, num_classes) for c in classes_levels])
+            rect_levels[best_level][best_anchor * 4, y_i, x_i] = (c_x - x_i * cell_shape[1]) / cell_shape[1]
+            rect_levels[best_level][best_anchor * 4 + 1, y_i, x_i] = (c_y - y_i * cell_shape[0]) / cell_shape[1]
+            rect_levels[best_level][best_anchor * 4 + 2, y_i, x_i] = np.log(w / anchor_shape[1])
+            rect_levels[best_level][best_anchor * 4 + 3, y_i, x_i] = np.log(h / anchor_shape[0])
+            classes_levels[best_level][best_anchor * num_classes + c.int(), y_i, x_i] = 1
+        rects = torch.cat([l.view(-1, 4) for l in rect_levels], 0)
+        classes = torch.cat([c.view(-1, num_classes) for c in classes_levels], 0)
         return rects, classes
-
-
 
 
 if __name__ == '__main__':
     # print(EfficientNet.from_pretrained('efficientnet-b0')(torch.from_numpy(np.ones((1, 3, 128, 128))).float())[2].shape)
     # model = nn.Sequential(*EfficientNet.from_pretrained('efficientnet-b0').get_list_features())
     # print(model(torch.from_numpy(np.ones((1, 3, 128, 128))).float()))
-    model = EfficientDet(1, is_training=False)
-    a = model(torch.from_numpy(np.ones((1, 3, 1280, 1024))).float())
+    model = EfficientDet(2)
+    a = model((torch.from_numpy(np.ones((1, 3, 1280, 1024))).float(),
+               torch.from_numpy(np.array([[[401, 550, 415, 570, 0], [201, 800, 230, 820, 1]]])).float()))
     print(a[0].shape)
