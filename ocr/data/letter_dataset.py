@@ -72,9 +72,7 @@ class LetterDataset(Dataset):
         letter_boxes[:, 2] /= dw
         letter_boxes[:, 3] /= dw
 
-        annot = build_label(image.shape[1:], letter_boxes)
-
-        return image, annot
+        return image, letter_boxes
 
     def __len__(self):
         return len(self.annot_names)

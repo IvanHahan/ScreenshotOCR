@@ -52,11 +52,6 @@ class EfficientDet(nn.Module):
         self.freeze_bn()
 
     def forward(self, inputs):
-        if self.is_training:
-            inputs, annotations = inputs
-            annotations = [self.build_label(annot, inputs.shape[2:], [0.5, 1, 2.0], 3) for annot in annotations]
-        else:
-            inputs = inputs
         x = self.extract_feat(inputs)
         classes, boxes = self.bbox_head(x)
         return classes, boxes
