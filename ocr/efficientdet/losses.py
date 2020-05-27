@@ -13,8 +13,8 @@ def focal_loss(gamma):
         object_pred_boxes = pred_boxes[object_i]
         object_annot_boxes = annot_boxes[object_i]
 
-        entropy = F.cross_entropy(pred_boxes.view(-1, pred_boxes.shape[-1]),
-                                  annot_classes.view(-1, pred_boxes.shape[-1]))
+        entropy = F.cross_entropy(pred_classes.view(-1, pred_classes.shape[-1]),
+                                  annot_classes.view(-1, annot_classes.shape[-1]))
         inv_entropy = torch.exp(entropy)
         focal_loss = (-(1 - inv_entropy) ** gamma) * entropy
 
