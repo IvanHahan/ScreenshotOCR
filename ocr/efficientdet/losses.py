@@ -13,18 +13,18 @@ def focal_loss(gamma):
         object_pred_boxes = pred_boxes[object_i]
         object_annot_boxes = annot_boxes[object_i]
 
-        entropy = F.cross_entropy(pred_classes.view(-1, pred_classes.shape[-1]),
-                                  annot_classes.view(-1, annot_classes.shape[-1]))
+        entropy = F.binary_cross_entropy(pred_classes.view(-1),
+                                  annot_classes.view(-1), reduce=False)
         inv_entropy = torch.exp(entropy)
-        focal_loss = (-(1 - inv_entropy) ** gamma) * entropy
+        f_loss = (-(1 - inv_entropy) ** gamma) * entropy
 
         x_loss = F.binary_cross_entropy(object_pred_boxes[..., 0], object_annot_boxes[..., 0])  # x
         y_loss = F.binary_cross_entropy(object_pred_boxes[..., 1], object_annot_boxes[..., 1])  # y
         w_loss = F.mse_loss(object_pred_boxes[..., 2], object_annot_boxes[..., 2])
         h_loss = F.mse_loss(object_pred_boxes[..., 3], object_annot_boxes[..., 3])
 
-        return focal_loss + x_loss + y_loss + w_loss + h_loss
+        return f_loss.mean() + x_loss + y_loss + w_loss + h_loss
     return loss
 
-
-
+def total_loss():
+    """ih"""
