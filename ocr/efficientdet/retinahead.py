@@ -126,13 +126,14 @@ class RetinaHead(nn.Module):
         cls_score = cls_score.contiguous().view(x.size(0), -1, self.num_classes)
 
         bbox_pred = self.retina_reg(reg_feat)
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1)
         bbox_pred[..., 0::4] = F.sigmoid(bbox_pred[..., 0::4])
         bbox_pred[..., 1::4] = F.sigmoid(bbox_pred[..., 1::4])
 
-        cell_shape = img_shape // np.array(list(bbox_pred.shape[2:]))
+        cell_shape = img_shape // np.array(list(bbox_pred.shape[1:3]))
         anchors = []
         for ratio in self.anchor_ratios:
-            anchor = max(cell_shape), max(cell_shape)
+            anchor = [max(cell_shape), max(cell_shape)]
             if ratio < 1:
                 anchor[0] /= ratio
             else:
@@ -141,20 +142,24 @@ class RetinaHead(nn.Module):
 
         output_boxes = bbox_pred.clone()
         output_boxes[..., 0::4] = output_boxes[..., 0::4] * cell_shape[1] + \
-                                  torch.range(0, bbox_pred.shape[3]).repeat(bbox_pred.shape[2]) * cell_shape[1]
+                                  torch.arange(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[1], 1)\
+                                      .view(1, bbox_pred.shape[1], bbox_pred.shape[2], 1) * cell_shape[1]
         output_boxes[..., 1::4] = output_boxes[..., 1::4] * cell_shape[0] + \
-                                  torch.range(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[3]).transpose() * cell_shape[0]
+                                  torch.arange(0, bbox_pred.shape[1]).repeat(bbox_pred.shape[2], 1).t()\
+                                      .view(1, bbox_pred.shape[1], bbox_pred.shape[2], 1) * cell_shape[0]
         for i, anchor in enumerate(anchors):
             output_boxes[..., (i * 4) + 2] = torch.exp(output_boxes[..., (i * 4) + 2]) * anchor[1]
             output_boxes[..., (i * 4) + 3] = torch.exp(output_boxes[..., (i * 4) + 3]) * anchor[0]
 
-        train_boxes = bbox_pred.permute(0, 2, 3, 1)
-        train_boxes = train_boxes.contiguous().view(bbox_pred.size(0), -1, 4)
+        output_boxes = output_boxes.contiguous().view(output_boxes.size(0), -1, 4)
+
+        train_boxes = bbox_pred.contiguous().view(output_boxes.size(0), -1, 4)
 
         return cls_score, train_boxes, output_boxes
 
-    def forward(self, feats):
-        classes, boxes = multi_apply(self.forward_single, feats)
+    def forward(self, feats, img_shape):
+        classes, train_boxes, output_boxes = multi_apply(self.forward_single, feats, img_shape)
         classes = torch.cat(classes, dim=1)
-        boxes = torch.cat(boxes, dim=1)
-        return classes, boxes
+        train_boxes = torch.cat(train_boxes, dim=1)
+        output_boxes = torch.cat(output_boxes, dim=1)
+        return classes, train_boxes, output_boxes

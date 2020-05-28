@@ -53,8 +53,8 @@ class EfficientDet(nn.Module):
 
     def forward(self, inputs):
         x = self.extract_feat(inputs)
-        classes, boxes = self.bbox_head(x)
-        return classes, boxes
+        classes, train_boxes, output_boxes = self.bbox_head(x, inputs.shape[2:])
+        return classes, train_boxes, output_boxes
 
     def freeze_bn(self):
         '''Freeze BatchNorm layers.'''
@@ -76,6 +76,5 @@ if __name__ == '__main__':
     # model = nn.Sequential(*EfficientNet.from_pretrained('efficientnet-b0').get_list_features())
     # print(model(torch.from_numpy(np.ones((1, 3, 128, 128))).float()))
     model = EfficientDet(2)
-    a = model((torch.from_numpy(np.ones((1, 3, 1280, 1024))).float(),
-               torch.from_numpy(np.array([[[401, 550, 415, 570, 0], [201, 800, 230, 820, 1]]])).float()))
+    a = model(torch.from_numpy(np.ones((1, 3, 1280, 1024))).float())
     print(a[0].shape)
