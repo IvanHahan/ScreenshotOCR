@@ -143,12 +143,15 @@ class RetinaHead(nn.Module):
         output_boxes[..., 0::4] = output_boxes[..., 0::4] * cell_shape[1] + \
                                   torch.range(0, bbox_pred.shape[3]).repeat(bbox_pred.shape[2]) * cell_shape[1]
         output_boxes[..., 1::4] = output_boxes[..., 1::4] * cell_shape[0] + \
-                                  torch.range(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[3]) * cell_shape[0]
+                                  torch.range(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[3]).transpose() * cell_shape[0]
+        for i, anchor in enumerate(anchors):
+            output_boxes[..., (i * 4) + 2] = torch.exp(output_boxes[..., (i * 4) + 2]) * anchor[1]
+            output_boxes[..., (i * 4) + 3] = torch.exp(output_boxes[..., (i * 4) + 3]) * anchor[0]
 
-        bbox_pred = bbox_pred.permute(0, 2, 3, 1)
-        bbox_pred = bbox_pred.contiguous().view(bbox_pred.size(0), -1, 4)
+        train_boxes = bbox_pred.permute(0, 2, 3, 1)
+        train_boxes = train_boxes.contiguous().view(bbox_pred.size(0), -1, 4)
 
-        return cls_score, bbox_pred
+        return cls_score, train_boxes, output_boxes
 
     def forward(self, feats):
         classes, boxes = multi_apply(self.forward_single, feats)
