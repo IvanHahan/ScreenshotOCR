@@ -127,6 +127,7 @@ class RetinaHead(nn.Module):
 
         bbox_pred = self.retina_reg(reg_feat)
         bbox_pred = bbox_pred.permute(0, 2, 3, 1)
+
         bbox_pred[..., 0::4] = F.sigmoid(bbox_pred[..., 0::4])
         bbox_pred[..., 1::4] = F.sigmoid(bbox_pred[..., 1::4])
 
@@ -158,7 +159,7 @@ class RetinaHead(nn.Module):
         return cls_score, train_boxes, output_boxes
 
     def forward(self, feats, img_shape):
-        classes, train_boxes, output_boxes = multi_apply(self.forward_single, feats, img_shape)
+        classes, train_boxes, output_boxes = multi_apply(self.forward_single, feats, [img_shape for _ in range(len(feats))])
         classes = torch.cat(classes, dim=1)
         train_boxes = torch.cat(train_boxes, dim=1)
         output_boxes = torch.cat(output_boxes, dim=1)

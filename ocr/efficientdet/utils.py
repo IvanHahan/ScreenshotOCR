@@ -427,7 +427,8 @@ def build_label(annots, img_shape, anchor_ratios, num_classes):
 
 
 def postprocess(classes, rects):
-    rects
-    scores = torch.max(classes, dim=-1)
-    rects = nms(rects, scores, 0.4)
-    return rects
+    rects = xywh2xyxy(rects)
+    scores = torch.max(classes, dim=-1)[0]
+    keep = nms(rects, scores, 0.4)
+    return classes[keep], rects[keep]
+
