@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 from ocr.efficientnet.model import EfficientNet
 from ocr.efficientdet.bifpn import BIFPN
-from ocr.efficientdet.retinahead import RetinaHead
+from ocr.efficientdet.my_retinahead import RetinaHead
 from ocr.efficientdet.module import RegressionModel, ClassificationModel, Anchors, ClipBoxes, BBoxTransform
 from torchvision.ops import nms
 from ocr.efficientdet.utils import calc_iou
@@ -42,25 +42,13 @@ class EfficientDet(nn.Module):
 
         self.threshold = threshold
         self.iou_threshold = iou_threshold
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-        self.freeze_bn()
 
     def forward(self, inputs):
         x = self.extract_feat(inputs)
-        classes, train_boxes, output_boxes = self.bbox_head(x, inputs.shape[2:])
+        # classes, train_boxes, output_boxes = self.bbox_head(x, inputs.shape[2:])
+        classes = self.bbox_head(x, inputs.shape[2:])
+        return classes
         return classes, train_boxes, output_boxes
-
-    def freeze_bn(self):
-        '''Freeze BatchNorm layers.'''
-        for layer in self.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.eval()
 
     def extract_feat(self, img):
         """

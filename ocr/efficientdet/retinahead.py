@@ -122,7 +122,14 @@ class RetinaHead(nn.Module):
         cls_score = cls_score.permute(0, 2, 3, 1)
         batch_size, width, height, channels = cls_score.shape
         cls_score = cls_score.view(
-            batch_size, width, height, self.num_anchors, self.num_classes)
+            batch_size, width, height, self.num_anchors * self.num_classes)
+        return cls_score
+
+        # from matplotlib import pyplot as plt
+        # plt.imshow(cls_score[0, :, :, 2].clone().detach().numpy())
+        # plt.show()
+
+
         cls_score = cls_score.contiguous().view(x.size(0), -1, self.num_classes)
 
         bbox_pred = self.retina_reg(reg_feat)
@@ -141,12 +148,13 @@ class RetinaHead(nn.Module):
                 anchor[1] *= ratio
             anchors.append(anchor)
 
+
         output_boxes = bbox_pred.clone()
         output_boxes[..., 0::4] = output_boxes[..., 0::4] * cell_shape[1] + \
-                                  torch.arange(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[1], 1)\
+                                  torch.arange(0, bbox_pred.shape[2]).repeat(bbox_pred.shape[1], 1) \
                                       .view(1, bbox_pred.shape[1], bbox_pred.shape[2], 1) * cell_shape[1]
         output_boxes[..., 1::4] = output_boxes[..., 1::4] * cell_shape[0] + \
-                                  torch.arange(0, bbox_pred.shape[1]).repeat(bbox_pred.shape[2], 1).t()\
+                                  torch.arange(0, bbox_pred.shape[1]).repeat(bbox_pred.shape[2], 1).t() \
                                       .view(1, bbox_pred.shape[1], bbox_pred.shape[2], 1) * cell_shape[0]
         for i, anchor in enumerate(anchors):
             output_boxes[..., (i * 4) + 2] = torch.exp(output_boxes[..., (i * 4) + 2]) * anchor[1]
@@ -159,6 +167,8 @@ class RetinaHead(nn.Module):
         return cls_score, train_boxes, output_boxes
 
     def forward(self, feats, img_shape):
+        classes = multi_apply(self.forward_single, feats, [img_shape for _ in range(len(feats))])
+        return classes[0][0]
         classes, train_boxes, output_boxes = multi_apply(self.forward_single, feats, [img_shape for _ in range(len(feats))])
         classes = torch.cat(classes, dim=1)
         train_boxes = torch.cat(train_boxes, dim=1)

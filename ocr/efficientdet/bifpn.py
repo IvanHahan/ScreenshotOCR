@@ -98,6 +98,7 @@ class BIFPN(nn.Module):
                 xavier_init(m, distribution='uniform')
 
     def forward(self, inputs):
+
         assert len(inputs) == len(self.in_channels)
         inputs[2] = self.conv2(inputs[2])
         inputs[3] = self.conv3(inputs[3])

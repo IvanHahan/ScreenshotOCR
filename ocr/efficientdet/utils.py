@@ -7,6 +7,7 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision.ops import nms
 from torch.utils import model_zoo
+import numpy as np
 
 ########################################################################
 ############### HELPERS FUNCTIONS FOR MODEL ARCHITECTURE ###############
@@ -421,6 +422,7 @@ def build_label(annots, img_shape, anchor_ratios, num_classes):
         rect_levels[best_level][best_anchor * 4 + 2, y_i, x_i] = torch.log(w / anchor_shape[1])
         rect_levels[best_level][best_anchor * 4 + 3, y_i, x_i] = torch.log(h / anchor_shape[0])
         classes_levels[best_level][best_anchor * num_classes + c.int(), y_i, x_i] = 1
+
     rects = torch.cat([l.view(-1, 4) for l in rect_levels], 0)
     classes = torch.cat([c.view(-1, num_classes) for c in classes_levels], 0)
     return rects, classes
