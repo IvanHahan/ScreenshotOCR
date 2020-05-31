@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     for e in range(args.epochs):
         optimizer.zero_grad()
-        img = torch.zeros((1, 3, 128, 128))
+        img = torch.zeros((1, 3, 128, 256))
         img[..., 7:12, 7:12] = 1
         img[..., 46:58, 56:78] = 1
         annot = torch.FloatTensor([[7, 7, 12, 12, 0], [56, 46, 78, 58, 0]])
@@ -37,12 +37,12 @@ if __name__ == '__main__':
 
         out_classes, out_rects = postprocess(classes_[0], output_rects[0])
         if e % 40 == 0:
-            img = np.zeros((128, 128, 3), dtype='uint8')
+            img = np.zeros((128, 256, 3), dtype='uint8')
             for rect in annot.numpy():
                 x1, y1, x2, y2, _ = np.clip(rect, 0, 128)
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 255, 255), cv2.FILLED)
             for rect in out_rects.data.numpy().astype(int):
-                x1, y1, x2, y2 = np.clip(rect, 0, 128)
+                x1, y1, x2, y2 = rect
                 img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 1)
             plt.imshow(img)
             plt.show()

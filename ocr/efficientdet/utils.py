@@ -430,7 +430,7 @@ def postprocess(classes, rects):
     rects = xywh2xyxy(rects)
     scores = torch.max(classes, dim=-1)[0]
 
-    keep_score = 0.7
+    keep_score = 0.5
     rects = rects[scores > keep_score]
     classes = classes[scores > keep_score]
     scores = scores[scores > keep_score]

@@ -7,6 +7,8 @@ def focal_loss(alpha, gamma):
     def loss(pred_classes, annot_classes):
         # boxes: samples x boxes x (xywh)
         # classes: samples x boxes x classes
+        # print(pred_classes.contiguous().view(-1).sort()[0])
+        # print(pred_classes.contiguous().view(-1).sort()[0][-2:], pred_classes.contiguous().view(-1).argsort()[-2:], annot_classes.contiguous().view(-1).argsort()[-2:])
         entropy = F.binary_cross_entropy(pred_classes.contiguous().view(-1),
                                   annot_classes.contiguous().view(-1), reduce=False)
         inv_entropy = torch.exp(entropy)
@@ -22,7 +24,7 @@ def total_loss():
 
         object_pred_boxes = pred_boxes[object_i]
         object_annot_boxes = annot_boxes[object_i]
-        print(object_pred_boxes[..., 2:].data, object_annot_boxes[..., 2:])
+        # print(object_pred_boxes[..., 2:].data, object_annot_boxes[..., 2:])
 
         f_loss = focal_loss(0.25, 2)(pred_classes, annot_classes)
 
