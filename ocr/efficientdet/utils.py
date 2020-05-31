@@ -8,6 +8,7 @@ from torch.nn import functional as F
 from torchvision.ops import nms
 from torch.utils import model_zoo
 import numpy as np
+from matplotlib import pyplot as plt
 
 ########################################################################
 ############### HELPERS FUNCTIONS FOR MODEL ARCHITECTURE ###############
@@ -334,14 +335,8 @@ def calc_iou(l, r, no_positions=False):
     # x1, y1, x2, y2
 
     if no_positions:
-        l[2] -= l[0]
-        l[0] = 0
-        l[3] -= l[1]
-        l[1] = 0
-        r[2] -= r[0]
-        r[0] = 0
-        r[3] -= r[1]
-        r[1] = 0
+        l = [0, 0, l[2] - l[0], l[3] - l[1]]
+        r = [0, 0, r[2] - r[0], r[3] - r[1]]
 
     l_x1, l_y1, l_x2, l_y2 = l
     r_x1, r_y1, r_x2, r_y2 = r
@@ -362,18 +357,18 @@ def calc_iou(l, r, no_positions=False):
 
 
 def xywh2xyxy(rects):
-    rects[:, 0] -= rects[:, 2] / 2
-    rects[:, 1] -= rects[:, 3] / 2
-    rects[:, 2] = rects[:, 0] + rects[:, 2]
-    rects[:, 3] = rects[:, 1] + rects[:, 3]
+    rects[..., 0] -= rects[..., 2] / 2
+    rects[..., 1] -= rects[..., 3] / 2
+    rects[..., 2] = rects[..., 0] + rects[..., 2]
+    rects[..., 3] = rects[..., 1] + rects[..., 3]
     return rects
 
 
 def xyxy2xywh(rects):
-    rects[:, 2] = rects[:, 2] - rects[:, 0]
-    rects[:, 3] = rects[:, 3] - rects[:, 1]
-    rects[:, 0] += rects[:, 2] / 2
-    rects[:, 1] += rects[:, 3] / 2
+    rects[..., 2] = rects[..., 2] - rects[..., 0]
+    rects[..., 3] = rects[:, 3] - rects[..., 1]
+    rects[..., 0] += rects[..., 2] / 2
+    rects[..., 1] += rects[..., 3] / 2
     return rects
 
 
@@ -386,8 +381,8 @@ def build_label(annots, img_shape, anchor_ratios, num_classes):
     img_h, img_w = img_shape
     for i in range(5):
         level_shape = img_h // divider, img_w // divider
-        rect_level = torch.zeros((len(anchor_ratios) * 4, *level_shape))
-        class_level = torch.zeros((len(anchor_ratios) * num_classes, *level_shape))
+        rect_level = torch.zeros((*level_shape, len(anchor_ratios), 4))
+        class_level = torch.zeros((*level_shape, len(anchor_ratios), num_classes))
         level_cell_shapes = []
         for ratio in anchor_ratios:
             cell_size = max(img_shape[0] / level_shape[0], img_shape[1] / level_shape[1])
@@ -413,17 +408,20 @@ def build_label(annots, img_shape, anchor_ratios, num_classes):
         best_anchor = max_iou_i % len(anchor_ratios)
 
         anchor_shape = cell_shapes[best_level, best_anchor]
-        cell_shape = img_h // rect_levels[best_level].shape[1], img_w // rect_levels[best_level].shape[2]
+        cell_shape = img_h // rect_levels[best_level].shape[0], img_w // rect_levels[best_level].shape[1]
         y_i = c_y.int() // cell_shape[0]
         x_i = c_x.int() // cell_shape[1]
 
-        rect_levels[best_level][best_anchor * 4, y_i, x_i] = (c_x - x_i * cell_shape[1]) / cell_shape[1]
-        rect_levels[best_level][best_anchor * 4 + 1, y_i, x_i] = (c_y - y_i * cell_shape[0]) / cell_shape[1]
-        rect_levels[best_level][best_anchor * 4 + 2, y_i, x_i] = torch.log(w / anchor_shape[1])
-        rect_levels[best_level][best_anchor * 4 + 3, y_i, x_i] = torch.log(h / anchor_shape[0])
-        classes_levels[best_level][best_anchor * num_classes + c.int(), y_i, x_i] = 1
+        rect_levels[best_level][y_i, x_i, best_anchor, 0] = (c_x - x_i * cell_shape[1]) / cell_shape[1]
+        rect_levels[best_level][y_i, x_i, best_anchor, 1] = (c_y - y_i * cell_shape[0]) / cell_shape[1]
+        rect_levels[best_level][y_i, x_i, best_anchor, 2] = torch.log(w / anchor_shape[1])
+        rect_levels[best_level][y_i, x_i, best_anchor, 3] = torch.log(h / anchor_shape[0])
+        classes_levels[best_level][y_i, x_i, best_anchor, c.int()] = 1
 
-    rects = torch.cat([l.view(-1, 4) for l in rect_levels], 0)
+    # for level in classes_levels:
+    #     plt.imshow(np.sum(level.view((*level.shape[:2], -1)).numpy(), -1))
+    #     plt.show()
+    rects = torch.cat([l.reshape(-1, l.size(-1)) for l in rect_levels], 0)
     classes = torch.cat([c.view(-1, num_classes) for c in classes_levels], 0)
     return rects, classes
 
@@ -431,6 +429,12 @@ def build_label(annots, img_shape, anchor_ratios, num_classes):
 def postprocess(classes, rects):
     rects = xywh2xyxy(rects)
     scores = torch.max(classes, dim=-1)[0]
-    keep = nms(rects, scores, 0.4)
+
+    keep_score = 0.7
+    rects = rects[scores > keep_score]
+    classes = classes[scores > keep_score]
+    scores = scores[scores > keep_score]
+
+    keep = nms(rects, scores, 0.2)
     return classes[keep], rects[keep]
 

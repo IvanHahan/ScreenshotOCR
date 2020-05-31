@@ -46,9 +46,8 @@ class EfficientDet(nn.Module):
     def forward(self, inputs):
         x = self.extract_feat(inputs)
         # classes, train_boxes, output_boxes = self.bbox_head(x, inputs.shape[2:])
-        classes = self.bbox_head(x, inputs.shape[2:])
-        return classes
-        return classes, train_boxes, output_boxes
+        classes, activations, train_boxes, output_boxes = self.bbox_head(x, inputs.shape[2:])
+        return classes, activations, train_boxes, output_boxes
 
     def extract_feat(self, img):
         """

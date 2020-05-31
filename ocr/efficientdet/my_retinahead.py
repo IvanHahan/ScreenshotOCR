@@ -41,12 +41,15 @@ class RetinaHead(nn.Module):
 
     def forward_single(self, x, img_shape):
         classes = self.class_branch(x)
-        classes = classes.view(x.shape[0], -1, self.num_classes)
+        classes = classes.permute(0, 2, 3, 1)
+        activations = classes.clone()
+        classes = classes.contiguous().view(x.shape[0], -1, self.num_classes)
 
         boxes = self.boxes_branch(x)
         boxes = boxes.permute(0, 2, 3, 1)
-        boxes[..., 0::4] = torch.sigmoid(boxes[..., 0::4])
-        boxes[..., 1::4] = torch.sigmoid(boxes[..., 1::4])
+        boxes = boxes.contiguous().view(*boxes.shape[:3], len(self.anchor_ratios), 4)  # B x H x W x A x (xywh)
+        # print((boxes[..., :2]<0).sum())
+        boxes[..., :2] = torch.sigmoid(boxes[..., :2])
 
         cell_shape = img_shape // np.array(list(boxes.shape[1:3]))
         anchors = []
@@ -59,25 +62,25 @@ class RetinaHead(nn.Module):
             anchors.append(anchor)
 
         output_boxes = boxes.clone()
-        output_boxes[..., 0::4] = output_boxes[..., 0::4] * cell_shape[1] + \
+        output_boxes[..., 0] = output_boxes[..., 0] * cell_shape[1] + \
                                   torch.arange(0, boxes.shape[2]).repeat(boxes.shape[1], 1) \
                                       .view(1, boxes.shape[1], boxes.shape[2], 1) * cell_shape[1]
-        output_boxes[..., 1::4] = output_boxes[..., 1::4] * cell_shape[0] + \
+        output_boxes[..., 1] = output_boxes[..., 1] * cell_shape[0] + \
                                   torch.arange(0, boxes.shape[1]).repeat(boxes.shape[2], 1).t() \
                                       .view(1, boxes.shape[1], boxes.shape[2], 1) * cell_shape[0]
         for i, anchor in enumerate(anchors):
-            output_boxes[..., (i * 4) + 2] = torch.exp(output_boxes[..., (i * 4) + 2]) * anchor[1]
-            output_boxes[..., (i * 4) + 3] = torch.exp(output_boxes[..., (i * 4) + 3]) * anchor[0]
+            output_boxes[..., i, 2] = torch.exp(output_boxes[..., i, 2]) * anchor[1]
+            output_boxes[..., i, 3] = torch.exp(output_boxes[..., i, 3]) * anchor[0]
 
         output_boxes = output_boxes.contiguous().view(output_boxes.size(0), -1, 4)
-        train_boxes = boxes.contiguous().view(output_boxes.size(0), -1, 4)
+        train_boxes = boxes.contiguous().view(boxes.size(0), -1, 4)
 
-        return classes, train_boxes, output_boxes
+        return classes, activations, train_boxes, output_boxes
 
     def forward(self, features, img_shape):
         # return [self.forward_single(x) for x in features][0]
-        classes, train_boxes, output_boxes = list(zip(*[self.forward_single(x, img_shape) for x in features[:1]]))
+        classes, activations, train_boxes, output_boxes = list(zip(*[self.forward_single(x, img_shape) for x in features]))
         classes = torch.cat(classes, 1)
         train_boxes = torch.cat(train_boxes, 1)
         output_boxes = torch.cat(output_boxes, 1)
-        return classes, train_boxes, output_boxes
+        return classes, activations, train_boxes, output_boxes
