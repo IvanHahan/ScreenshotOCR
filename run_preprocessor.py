@@ -1,5 +1,5 @@
 import cv2
-from augment import Preprocessor
+from utils.transform import Preprocessor
 from unet import UNet
 import argparse
 import torch

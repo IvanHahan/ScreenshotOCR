@@ -11,6 +11,7 @@ from torchvision.transforms import functional as F
 
 from ranger import ranger
 from unet import UNet
+from utils.transform import Preprocessor
 from utils.image_processing import resize_image, pad_image
 
 device = 'cuda'
