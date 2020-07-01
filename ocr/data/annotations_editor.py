@@ -55,7 +55,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', default=abs_path('data/images/raw'))
+    parser.add_argument('--input_dir', default=abs_path('/Users/UnicornKing/PyCharmProjects/screenshotprocessing/data/screenshots/2'))
     parser.add_argument('--output_dir', default=abs_path('data/annotations/'))
     main(parser.parse_args())
 

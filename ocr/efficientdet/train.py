@@ -27,7 +27,8 @@ if __name__ == '__main__':
         img = torch.zeros((1, 3, 128, 256))
         img[..., 7:12, 7:12] = 1
         img[..., 46:58, 56:78] = 1
-        annot = torch.FloatTensor([[7, 7, 12, 12, 0], [56, 46, 78, 58, 0]])
+        img[..., 70:75, 185:207] = 1
+        annot = torch.FloatTensor([[7, 7, 12, 12, 0], [56, 46, 78, 58, 0], [185, 70, 207, 75, 0]])
         rects, classes = build_label(annot.clone(), img.shape[2:], [0.5, 1, 2], 2)
         # classes = torch.zeros((1, 1, 16, 16))
         # classes[..., 3:4, 3:4] = 1
@@ -39,7 +40,7 @@ if __name__ == '__main__':
         if e % 40 == 0:
             img = np.zeros((128, 256, 3), dtype='uint8')
             for rect in annot.numpy():
-                x1, y1, x2, y2, _ = np.clip(rect, 0, 128)
+                x1, y1, x2, y2, _ = rect
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 255, 255), cv2.FILLED)
             for rect in out_rects.data.numpy().astype(int):
                 x1, y1, x2, y2 = rect
