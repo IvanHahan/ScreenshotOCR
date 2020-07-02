@@ -2,11 +2,9 @@ import cv2
 import argparse
 import os
 from utils.screenshot_processor import ScreenshotProcessor
-from ocr.data.image_processing import letter_boxes
-from ocr.data.visualization import draw_boxes
-from utils.path import abs_path
+from utils.image_processing import letter_boxes
+# from ocr.data.visualization import draw_boxes
 import numpy as np
-from utils.path import make_dir_if_needed
 
 
 class Annotator(ScreenshotProcessor):
@@ -48,14 +46,14 @@ class Annotator(ScreenshotProcessor):
 
 
 def main(args):
-    make_dir_if_needed(args.output_dir)
+    os.makedirs(args.output_dir, exist_ok=True)
     annotator = Annotator(args.input_dir, args.output_dir)
     annotator.start()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', default=abs_path('/Users/UnicornKing/PyCharmProjects/screenshotprocessing/data/screenshots/2'))
-    parser.add_argument('--output_dir', default=abs_path('data/annotations/'))
+    parser.add_argument('--input_dir', default='/Users/UnicornKing/PyCharmProjects/screenshotprocessing/data/screenshots/2')
+    parser.add_argument('--output_dir', default='data/annotations/')
     main(parser.parse_args())
 
