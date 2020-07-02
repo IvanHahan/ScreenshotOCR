@@ -18,34 +18,38 @@ device = 'cuda'
 
 class TextDataset(Dataset):
 
-    def __init__(self, image_dir, out_dir, transform=Preprocessor(True)):
+    def __init__(self, image_dir, out_dir, transform=Preprocessor(1152, True)):
         self.images = np.array(glob.glob(os.path.join(image_dir, '*')))
         self.outs = np.array(glob.glob(os.path.join(out_dir, '*')))
         self.transform = transform
 
     def __getitem__(self, item):
+        assert os.path.basename(self.images[item]) == os.path.basename(self.outs[item])
         image = cv2.imread(self.images[item])
         out = cv2.imread(self.outs[item])
         out = cv2.bitwise_not(out)
-        image, out = self.transform(image, out)
+        image, out = self.transform([image, out])
+        # plt.imshow(out.numpy()[0])
+        # plt.show()
+        # print(np.unique(out, return_counts=True))
         return image, out
 
     def __len__(self):
         return len(self.images)
 
 
-train_dataset = TextDataset('data/manual_letters/images', 'data/manual_letters/processed')
+train_dataset = TextDataset('data/final_letters/in', 'data/final_letters/out')
 
 model = UNet(1, 1).to(device)
 model.train()
 
-calc_loss = torch.nn.BCEWithLogitsLoss().to(device)
+calc_loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(10)).to(device)
 
 optimizer = ranger(model.parameters(), 1e-3)
 
 min_loss = 10000
 
-for e in range(0, 300):
+for e in range(1000):
     losses = []
     for images, targets in DataLoader(train_dataset, 1, False):
         images = images.to(device)
@@ -54,7 +58,7 @@ for e in range(0, 300):
 
         outs = model(images.float())
 
-        loss = calc_loss(targets, outs)
+        loss = calc_loss(outs, targets)
         losses.append(loss.item())
 
         loss.backward()
@@ -71,6 +75,6 @@ for e in range(0, 300):
         plt.imshow(im)
         plt.show()
 
-    if e == 200:
-        optimizer = ranger(model.parameters(), 1e-4)
-
+    # if e == 600:
+    #     optimizer = ranger(model.parameters(), 1e-4)
+torch.save(model.state_dict(), 'final-model.pth')

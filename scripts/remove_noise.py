@@ -8,10 +8,10 @@ from utils.annotations import parse_annotation
 from utils.image_processing import dark_on_light
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--image_path', default='data/auto_letters/images/3_OBFExcelAnonym1.png')
-parser.add_argument('--annot_path', default='data/auto_letters/annotations/3_OBFExcelAnonym1.npy')
+parser.add_argument('--image_path', default='data/auto_letters/images/12_OBFmainframe2.png')
+parser.add_argument('--annot_path', default='data/auto_letters/annotations/12_OBFmainframe2.npy')
 parser.add_argument('--format', choices=['numpy', 'lblme'], default='numpy')
-parser.add_argument('--output_path', default='data/auto_letters/processed/3_OBFExcelAnonym1.png')
+parser.add_argument('--output_path', default='data/auto_letters/processed/12_OBFmainframe2.png')
 args = parser.parse_args()
 
 
@@ -49,19 +49,19 @@ if __name__ == '__main__':
 
         h = y2 - y1
 
-        letter = image[y1:y2, x1:x2].copy()
-
-        gap = h // 6
+        gap = h // 4
         x1_ = x1 - gap if (x1 - gap) > 0 else 0
         y1_ = y1 - gap if (y1 - gap) > 0 else 0
         x2_ = x2 + gap if (x2 + gap) < image.shape[1] else image.shape[1] - 1
         y2_ = y2 + gap if (y2 + gap) < image.shape[0] else image.shape[0] - 1
 
+        letter = image[y1_:y2_, x1_:x2_].copy()
+
         if not dark_on_light(image[y1_:y2_, x1_:x2_]):
             letter = cv2.bitwise_not(letter)
         # letter = cv2.adaptiveThreshold(letter, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, -10)
         letter = cv2.threshold(letter, 200, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-        canvas[y1:y2, x1:x2] = letter
+        canvas[y1_:y2_, x1_:x2_] = letter
 
     cv2.imwrite(args.output_path, canvas)
     cv2.imshow('im', canvas)

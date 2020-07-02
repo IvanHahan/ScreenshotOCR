@@ -51,15 +51,16 @@ class SquarePad(object):
 
 class Preprocessor(object):
 
-    def __init__(self, augment=True):
+    def __init__(self, max_size=1152, augment=True):
         self.augment = augment
+        self.max_size = max_size
 
     def __call__(self, samples):
         """samples: pil images"""
 
         transformations = transforms.Compose([
-            MaxSizeResizer(1024),
-            SquarePad(),
+            MaxSizeResizer(self.max_size),
+            # SquarePad(),
             transforms.ToPILImage(),
         ])
         samples = [transformations(s) for s in samples]

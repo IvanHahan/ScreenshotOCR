@@ -3,7 +3,7 @@ import argparse
 import os
 from utils.screenshot_processor import ScreenshotProcessor
 from utils.image_processing import letter_boxes
-# from ocr.data.visualization import draw_boxes
+from utils.visualization import draw_boxes
 import numpy as np
 
 
