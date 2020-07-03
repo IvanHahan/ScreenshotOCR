@@ -49,7 +49,7 @@ optimizer = ranger(model.parameters(), 1e-3)
 
 min_loss = 10000
 
-for e in range(1000):
+for e in range(300):
     losses = []
     for images, targets in DataLoader(train_dataset, 1, False):
         images = images.to(device)

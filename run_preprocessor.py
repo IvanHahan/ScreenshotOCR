@@ -6,7 +6,7 @@ import torch
 from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input', default='data/manual_letters/images/15_OBFOriginal.png')
+parser.add_argument('--input', default='data/auto_letters/images/22_OBFRBROKEREX.png')
 parser.add_argument('--output', default='output.jpg')
 parser.add_argument('--weights', default='best-model.pth')
 parser.add_argument('--num_classes', default=1)
@@ -20,9 +20,12 @@ if __name__ == '__main__':
 
     image = cv2.imread(args.input)
     with torch.no_grad():
-        preprocessor = Preprocessor(False)
+        preprocessor = Preprocessor(1536, False)
         image = preprocessor([image])[0]
         image = image.view(1, *image.size()).to('cuda')
-        out = model(image.float())[0].cpu().numpy().transpose([1, 2, 0])[..., 0]
+        out = torch.sigmoid(model(image.float()))[0].cpu().numpy().transpose([1, 2, 0])[..., 0]
         plt.imshow(out)
         plt.show()
+
+        out = (out * 255.).astype('uint8')
+        cv2.imwrite('out.jpg', out)
