@@ -60,14 +60,14 @@ class Preprocessor(object):
 
         transformations = transforms.Compose([
             MaxSizeResizer(self.max_size),
-            # SquarePad(),
+            SquarePad(),
             transforms.ToPILImage(),
         ])
         samples = [transformations(s) for s in samples]
 
         if self.augment:
             rotation, translation, scale, shear = transforms.RandomAffine.get_params((0, 0), (0.2, 0.2),
-                                                                                     (1, 1.7), None,
+                                                                                     (1, 1.9), None,
                                                                                      samples[0].size)
             brightness = np.random.uniform(0.8, 1.2)
             hue = np.random.uniform(-0.5, 0.5)

@@ -18,7 +18,7 @@ device = 'cuda'
 
 class TextDataset(Dataset):
 
-    def __init__(self, image_dir, out_dir, transform=Preprocessor(1152, True)):
+    def __init__(self, image_dir, out_dir, transform=Preprocessor(1024, True)):
         self.images = np.array(glob.glob(os.path.join(image_dir, '*')))
         self.outs = np.array(glob.glob(os.path.join(out_dir, '*')))
         self.transform = transform
@@ -38,9 +38,11 @@ class TextDataset(Dataset):
         return len(self.images)
 
 
+os.makedirs('model', exist_ok=True)
+
 train_dataset = TextDataset('data/final_letters/in', 'data/final_letters/out')
 
-model = UNet(1, 1).to(device)
+model = UNet(1, 1, False).to(device)
 model.train()
 
 calc_loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(10)).to(device)
@@ -49,7 +51,7 @@ optimizer = ranger(model.parameters(), 1e-3)
 
 min_loss = 10000
 
-for e in range(300):
+for e in range(400):
     losses = []
     for images, targets in DataLoader(train_dataset, 1, False):
         images = images.to(device)
@@ -67,7 +69,7 @@ for e in range(300):
     train_loss = np.mean(losses)
     if train_loss < min_loss:
         min_loss = train_loss
-        torch.save(model.state_dict(), 'best-model.pth')
+        torch.save(model.state_dict(), 'model/best-model.pth')
     print(train_loss)
     if e > 0 and e % 10 == 0:
 
@@ -75,6 +77,6 @@ for e in range(300):
         plt.imshow(im)
         plt.show()
 
-    # if e == 600:
-    #     optimizer = ranger(model.parameters(), 1e-4)
-torch.save(model.state_dict(), 'final-model.pth')
+    if e == 300:
+        optimizer = ranger(model.parameters(), 1e-4)
+torch.save(model.state_dict(), 'model/final-model.pth')
